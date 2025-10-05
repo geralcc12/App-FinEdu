@@ -1,3 +1,4 @@
+import 'package:aplicaciones_moviles/services/achievement_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/notification_service.dart';
@@ -8,7 +9,7 @@ const Color darkCardBackground = Color(0xFF1E1E1E);
 const Color darkPrimaryTextColor = Colors.white;
 const Color darkSecondaryTextColor = Color(0xFFB0B0B0);
 const Color accentColorGreen = Color(0xFF00D19A);
-const Color darkInputBorderColor = Color(0xFF505050); // <--- AÑADIDO: La constante que faltaba
+const Color darkInputBorderColor = Color(0xFF505050);
 
 class AddReminderPage extends StatefulWidget {
   const AddReminderPage({super.key});
@@ -23,6 +24,7 @@ class _AddReminderPageState extends State<AddReminderPage> {
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _isSaving = false;
+  final AchievementService _achievementService = AchievementService(); // Instancia del servicio
 
   @override
   void dispose() {
@@ -92,6 +94,9 @@ class _AddReminderPageState extends State<AddReminderPage> {
       scheduledDate: scheduledDateTime,
     );
 
+    // Otorgar el logro por el primer gasto/recordatorio
+    await _achievementService.awardAchievement('first_expense');
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -101,7 +106,6 @@ class _AddReminderPageState extends State<AddReminderPage> {
         ),
       );
 
-      // Espera a que el SnackBar sea visible antes de volver
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.of(context).pop();
@@ -162,7 +166,7 @@ class _AddReminderPageState extends State<AddReminderPage> {
             trailing: Text(DateFormat('dd/MM/yyyy').format(_selectedDate), style: const TextStyle(color: accentColorGreen, fontSize: 16)),
             onTap: () => _selectDate(context),
           ),
-          const Divider(height: 1, color: darkInputBorderColor), // <-- AHORA FUNCIONARÁ
+          const Divider(height: 1, color: darkInputBorderColor),
           ListTile(
             leading: const Icon(Icons.access_time_filled_rounded, color: darkSecondaryTextColor),
             title: const Text('Hora', style: TextStyle(color: darkPrimaryTextColor)),

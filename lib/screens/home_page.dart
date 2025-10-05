@@ -1,13 +1,13 @@
-// lib/screens/home_page.dart
+import 'package:aplicaciones_moviles/screens/learning_hub_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'dart:math'; // Para max() y Random()
 
-import 'add_edit_transaction_page.dart'; 
-import 'reportes_page.dart'; 
-import 'settings_page.dart'; 
-import 'chat_bot_page.dart'; 
+import 'add_edit_transaction_page.dart';
+import 'reportes_page.dart';
+import 'settings_page.dart';
+import 'chat_bot_page.dart';
 
 // Colores fijos para el tema oscuro
 const Color darkScaffoldBackground = Color(0xFF121212);
@@ -25,14 +25,14 @@ class _UnifiedTransaction {
   final String type; // 'ingreso' o 'gasto'
   final DocumentReference reference;
   final Timestamp timestamp;
-  final DocumentSnapshot snapshot; 
+  final DocumentSnapshot snapshot;
 
   _UnifiedTransaction({
     required this.data,
     required this.type,
     required this.reference,
     required this.timestamp,
-    required this.snapshot, 
+    required this.snapshot,
   });
 }
 
@@ -76,13 +76,15 @@ class _HomePageState extends State<HomePage> {
   Widget _getCurrentPage(int index) {
     switch (index) {
       case 0: // Home
-        return _buildHomePageContent(); 
-      case 2: // Reportes
-        return const ReportesPage(); 
-      case 3: // ChatBot
-        return const ChatBotPage(); 
-      case 4: // Settings
-        return const SettingsPage(); 
+        return _buildHomePageContent();
+      case 2: // Aprender
+        return const LearningHubPage();
+      case 3: // Reportes
+        return const ReportesPage();
+      case 4: // ChatBot
+        return const ChatBotPage();
+      case 5: // Settings
+        return const SettingsPage();
       default:
         return _buildHomePageContent();
     }
@@ -176,7 +178,7 @@ class _HomePageState extends State<HomePage> {
                         child: allTransactions.isEmpty
                             ? _buildEmptyState() // <--- AÑADIDO: Empty State Mejorado
                             : ListView.separated(
-                                // TODO: Para agrupar por fecha, necesitarías procesar `allTransactions` 
+                                // TODO: Para agrupar por fecha, necesitarías procesar `allTransactions`
                                 // y construir una lista de widgets que incluya separadores de fecha.
                                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                                 itemCount: allTransactions.length,
@@ -211,7 +213,7 @@ class _HomePageState extends State<HomePage> {
                                     onLongPress: () async {
                                       final currentContext = context;
                                       final action = await showDialog<String>(
-                                        context: currentContext, 
+                                        context: currentContext,
                                         builder: (BuildContext dialogContext) {
                                           return AlertDialog(
                                             backgroundColor: darkModalBackground,
@@ -238,14 +240,14 @@ class _HomePageState extends State<HomePage> {
 
                                       if (action == 'edit') {
                                         Navigator.push(
-                                          currentContext, 
+                                          currentContext,
                                           MaterialPageRoute(
-                                            builder: (context) => AddEditTransactionPage(transactionToEdit: transaction.snapshot), 
+                                            builder: (context) => AddEditTransactionPage(transactionToEdit: transaction.snapshot),
                                           ),
                                         );
                                       } else if (action == 'delete') {
                                         final confirmDelete = await showDialog<bool>(
-                                          context: currentContext, 
+                                          context: currentContext,
                                           builder: (BuildContext confirmDialogContext) {
                                             return AlertDialog(
                                               backgroundColor: darkModalBackground,
@@ -269,7 +271,7 @@ class _HomePageState extends State<HomePage> {
                                         if (confirmDelete == true) {
                                           await transaction.reference.delete();
                                           if (!mounted) return;
-                                          ScaffoldMessenger.of(currentContext).showSnackBar( 
+                                          ScaffoldMessenger.of(currentContext).showSnackBar(
                                             const SnackBar(content: Text('Transacción eliminada'), backgroundColor: Colors.orangeAccent),
                                           );
                                         }
@@ -286,8 +288,8 @@ class _HomePageState extends State<HomePage> {
             },
           ),
         );
-      }); 
-  } 
+      });
+  }
 
   Widget _buildEmptyState() { // <--- WIDGET PARA EMPTY STATE MEJORADO
     return Center(
@@ -331,7 +333,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-    
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -341,7 +343,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: darkScaffoldBackground,
-      body: _getCurrentPage(_navIndex), 
+      body: _getCurrentPage(_navIndex),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: ClipRRect(
@@ -349,7 +351,7 @@ class _HomePageState extends State<HomePage> {
           child: BottomNavigationBar(
             currentIndex: _navIndex,
             onTap: (i) {
-              if (i == 1) { 
+              if (i == 1) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const AddEditTransactionPage()),
@@ -367,8 +369,9 @@ class _HomePageState extends State<HomePage> {
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
               BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline_rounded), label: 'Add'),
-              BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Reportes'), 
-              BottomNavigationBarItem(icon: Icon(Icons.support_agent_rounded), label: 'Chatbot'), 
+              BottomNavigationBarItem(icon: Icon(Icons.school_rounded), label: 'Aprender'),
+              BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Reportes'),
+              BottomNavigationBarItem(icon: Icon(Icons.support_agent_rounded), label: 'Chatbot'),
               BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: 'Settings'),
             ],
           ),
@@ -376,7 +379,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-} 
+}
 
 class _FinancialTipCard extends StatelessWidget { // <--- WIDGET PARA CONSEJO DEL DÍA
   final String tip;
@@ -519,7 +522,7 @@ class _HeaderBlock extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: progressBarValue,
                             minHeight: 14,
-                            backgroundColor: const Color(0x26000000), 
+                            backgroundColor: const Color(0x26000000),
                             valueColor: AlwaysStoppedAnimation<Color>(progressBarValue >=0 ? Color(0xFF02B97E) : accentColorRed ),
                           ),
                         ),
@@ -602,7 +605,7 @@ class _MiniStatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0x0D000000), 
+            color: const Color(0x0D000000),
             blurRadius: 4,
             offset: const Offset(0, 2),
           )
@@ -612,7 +615,7 @@ class _MiniStatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(title, style: TextStyle(fontSize: 13, color: Colors.black.withAlpha(178), fontWeight: FontWeight.w500)), 
+            Text(title, style: TextStyle(fontSize: 13, color: Colors.black.withAlpha(178), fontWeight: FontWeight.w500)),
           ]),
           const SizedBox(height: 8),
           Text(

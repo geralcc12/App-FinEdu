@@ -1,7 +1,8 @@
+import 'package:aplicaciones_moviles/screens/achievements_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'reminders_page.dart'; // <--- AÑADIDO: Importar la nueva página
+import 'reminders_page.dart';
 
 const Color darkScaffoldBackground = Color(0xFF121212);
 const Color darkCardBackground = Color(0xFF1E1E1E);
@@ -43,7 +44,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _logout() async {
     try {
       await FirebaseAuth.instance.signOut();
-      // Ya no es necesaria la navegación manual. AuthGate se encargará de redirigir.
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,9 +77,23 @@ class _SettingsPageState extends State<SettingsPage> {
               onTap: _logout,
             ),
           ],
+
           const Divider(color: Colors.grey),
 
-          // --- SECCIÓN DE NOTIFICACIONES MEJORADA ---
+          // --- SECCIÓN DE GAMIFICACIÓN ---
+          _buildSectionTitle(context, 'Progreso'),
+          ListTile(
+            leading: const Icon(Icons.emoji_events_outlined, color: darkSecondaryTextColor),
+            title: const Text('Mis Logros', style: TextStyle(color: darkPrimaryTextColor)),
+            subtitle: const Text('Consulta tus medallas y progreso', style: TextStyle(color: darkSecondaryTextColor)),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, color: darkSecondaryTextColor, size: 16),
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AchievementsPage()));
+            },
+          ),
+          
+          const Divider(color: Colors.grey),
+
           _buildSectionTitle(context, 'Notificaciones'),
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined, color: darkSecondaryTextColor),
@@ -101,7 +115,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambio de moneda no implementado')));
             },
           ),
-          // ... (resto de las opciones sin cambios)
         ],
       ),
     );
