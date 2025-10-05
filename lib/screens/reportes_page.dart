@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:pdf/pdf.dart'; // Para PdfColors y otros elementos de pdf
-import 'package:pdf/widgets.dart' as pw; // Usaremos prefijo pw para widgets de PDF
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 // Colores App
@@ -96,14 +96,14 @@ class _ReportesPageState extends State<ReportesPage> {
     try {
       QuerySnapshot ingresosSnap = await _firestore
           .collection('ingresos')
-          .where('userId', isEqualTo: _currentUser.uid) // No more '!'
+          .where('userId', isEqualTo: _currentUser!.uid)
           .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(rangoFechas.start))
           .where('fecha', isLessThanOrEqualTo: Timestamp.fromDate(rangoFechas.end))
           .orderBy('fecha', descending: true)
           .get();
       QuerySnapshot gastosSnap = await _firestore
           .collection('gastos')
-          .where('userId', isEqualTo: _currentUser.uid) // No more '!'
+          .where('userId', isEqualTo: _currentUser!.uid)
           .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(rangoFechas.start))
           .where('fecha', isLessThanOrEqualTo: Timestamp.fromDate(rangoFechas.end))
           .orderBy('fecha', descending: true)
@@ -147,28 +147,8 @@ Future<void> _generarYMostrarPdf({
 }) async {
     final pdf = pw.Document();
     
-    String fechaGeneracion = "Error en fecha";
-    try {
-      // Asegúrate de tener la localización 'es_ES' inicializada en tu main.dart
-      // await initializeDateFormatting('es_ES', null);
-      fechaGeneracion = DateFormat.yMMMMd('es_ES').add_jms().format(DateTime.now());
-    } catch (e) {
-      print("Error al formatear fecha para PDF: $e");
-      fechaGeneracion = DateFormat.yMMMMd().add_jms().format(DateTime.now()); // Fallback a formato por defecto
-    }
-
+    String fechaGeneracion = DateFormat.yMMMMd('es_ES').add_jms().format(DateTime.now());
     final String tituloReporteApp = _getAppBarTitle();
-
-    // ---- DEBUG PRINTS ----
-    print("--- DEBUG PDF GENERATION (Datos recibidos) ---");
-    print("Título del Reporte: $tituloReporteApp");
-    print("Fecha Generación: $fechaGeneracion");
-    print("Total Ingresos: $totalIngresos");
-    print("Total Gastos: $totalGastos");
-    print("Balance: $balance");
-    print("Gastos por Categoría: $gastosPorCategoriaData");
-    print("--- FIN DEBUG PDF GENERATION ---");
-    // ---- END DEBUG PRINTS ----
 
     pdf.addPage(
       pw.MultiPage(
@@ -208,7 +188,7 @@ Future<void> _generarYMostrarPdf({
             pw.SizedBox(height: 20),
             
             pw.Header(level: 1, text: 'Resumen del Periodo', textStyle: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey700)),
-            pw.TableHelper.fromTextArray( // Changed here
+            pw.TableHelper.fromTextArray(
               border: null,
               cellAlignment: pw.Alignment.centerLeft,
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey50),
@@ -232,7 +212,7 @@ Future<void> _generarYMostrarPdf({
             if (gastosPorCategoriaData.isNotEmpty)
               pw.Header(level: 1, text: 'Desglose de Gastos por Categoría', textStyle: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey700)),
             if (gastosPorCategoriaData.isNotEmpty)
-              pw.TableHelper.fromTextArray( // Changed here
+              pw.TableHelper.fromTextArray(
                 border: null,
                 cellAlignment: pw.Alignment.centerLeft,
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.teal50),
@@ -252,7 +232,7 @@ Future<void> _generarYMostrarPdf({
             
             pw.SizedBox(height: 30),
             pw.Paragraph(text: "Nota: Este es un reporte autogenerado. Los datos reflejan las transacciones registradas en la aplicación hasta la fecha de generación.", 
-                         style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic)) // Removed const
+                         style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic))
           ];
         },
       ),
@@ -265,11 +245,9 @@ Future<void> _generarYMostrarPdf({
 
   @override
   Widget build(BuildContext context) {
-    // Calcula los datos para la UI una vez aquí
     double uiTotalIngresos = _ingresosFiltrados.fold(0.0, (sum, item) => sum + ((item.data() as Map<String, dynamic>?)?['monto'] as num? ?? 0.0));
     double uiTotalGastos = _gastosFiltrados.fold(0.0, (sum, item) => sum + ((item.data() as Map<String, dynamic>?)?['monto'] as num? ?? 0.0));
     double uiBalance = uiTotalIngresos - uiTotalGastos;
-    // Pasa _gastosFiltrados a la función que calcula los datos por categoría
     Map<String, double> uiGastosPorCategoria = _getGastosPorCategoriaData(_gastosFiltrados);
 
     return Scaffold(
@@ -324,6 +302,44 @@ Future<void> _generarYMostrarPdf({
     );
   }
 
+  Widget _buildReportContent(double totalIngresos, double totalGastos, double balance, Map<String, double> gastosPorCategoria) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: accentColorGreen));
+    }
+    if (_ingresosFiltrados.isEmpty && _gastosFiltrados.isEmpty && !_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'No hay transacciones registradas en este periodo.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: darkSecondaryTextColor, fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSummaryCard('Ingresos Totales', totalIngresos, accentColorGreen),
+          const SizedBox(height: 12),
+          _buildSummaryCard('Gastos Totales', totalGastos, accentColorRed),
+          const SizedBox(height: 12),
+          _buildSummaryCard('Balance del Periodo', balance, balance >= 0 ? accentColorGreen : accentColorRed, isBalance: true),
+          const SizedBox(height: 24),
+          if (totalIngresos > 0 || totalGastos > 0)
+            _buildIncomeExpenseBarChart(totalIngresos, totalGastos),
+          const SizedBox(height: 24),
+          if (gastosPorCategoria.isNotEmpty)
+             _buildExpensesByCategoryPieChart(gastosPorCategoria),
+        ],
+      ),
+    );
+  }
+
   Widget _buildIncomeExpenseBarChart(double totalIngresos, double totalGastos) {
     return Card(
       color: darkCardBackground,
@@ -335,7 +351,7 @@ Future<void> _generarYMostrarPdf({
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Gráfico Ingresos vs. Gastos',
+              'Ingresos vs. Gastos',
               style: TextStyle(color: darkPrimaryTextColor, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
@@ -387,7 +403,15 @@ Future<void> _generarYMostrarPdf({
 
   Widget _buildExpensesByCategoryPieChart(Map<String, double> gastosPorCategoria) {
     if (gastosPorCategoria.isEmpty) {
-      return const SizedBox.shrink(); 
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 32.0),
+          child: Text(
+            'No hay gastos para mostrar en el gráfico.',
+            style: TextStyle(color: darkSecondaryTextColor, fontSize: 14),
+          ),
+        ),
+      );
     }
     int colorIndex = 0;
     List<PieChartSectionData> sections = gastosPorCategoria.entries.map((entry) {
@@ -396,10 +420,9 @@ Future<void> _generarYMostrarPdf({
       return PieChartSectionData(
         color: color,
         value: entry.value,
-        title: '${entry.key}\nS/ ${entry.value.toStringAsFixed(0)}',
-        radius: 80,
-        titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white, shadows: [const Shadow(color: Colors.black, blurRadius: 2)]),
-        titlePositionPercentageOffset: 0.55, 
+        title: '${(entry.value / gastosPorCategoria.values.reduce((a, b) => a + b) * 100).toStringAsFixed(0)}%',
+        radius: 60,
+        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white, shadows: [const Shadow(color: Colors.black, blurRadius: 2)]),
       );
     }).toList();
 
@@ -417,59 +440,51 @@ Future<void> _generarYMostrarPdf({
               style: TextStyle(color: darkPrimaryTextColor, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 200, 
-              child: PieChart(
-                PieChartData(
-                  sections: sections,
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 40,
-                  pieTouchData: PieTouchData(touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                    // Puedes manejar interacciones aquí si es necesario
-                  }),
+            Row(
+              children: [
+                SizedBox(
+                  height: 150,
+                  width: 150,
+                  child: PieChart(
+                    PieChartData(
+                      sections: sections,
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                      pieTouchData: PieTouchData(touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                        // Puedes manejar interacciones aquí si es necesario
+                      }),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: gastosPorCategoria.entries.map((entry) {
+                      final color = pieChartColors[gastosPorCategoria.keys.toList().indexOf(entry.key) % pieChartColors.length];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          children: [
+                            Container(width: 12, height: 12, color: color),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${entry.key} - S/ ${entry.value.toStringAsFixed(2)}',
+                                style: const TextStyle(color: darkSecondaryTextColor, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildReportContent(double totalIngresos, double totalGastos, double balance, Map<String, double> gastosPorCategoria) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: accentColorGreen));
-    }
-    if (_ingresosFiltrados.isEmpty && _gastosFiltrados.isEmpty && !_isLoading) {
-      return const Center(
-        child: Text(
-          'No hay transacciones para este periodo.',
-          style: TextStyle(color: darkSecondaryTextColor, fontSize: 16),
-        ),
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Resumen del Periodo', style: TextStyle(color: darkPrimaryTextColor, fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          _buildSummaryCard('Ingresos Totales', totalIngresos, accentColorGreen),
-          const SizedBox(height: 12),
-          _buildSummaryCard('Gastos Totales', totalGastos, accentColorRed),
-          const SizedBox(height: 12),
-          _buildSummaryCard('Balance', balance, balance >= 0 ? accentColorGreen : accentColorRed, isBalance: true),
-          const SizedBox(height: 24),
-          if (totalIngresos > 0 || totalGastos > 0)
-            _buildIncomeExpenseBarChart(totalIngresos, totalGastos),
-          const SizedBox(height: 24),
-          if (gastosPorCategoria.isNotEmpty)
-             _buildExpensesByCategoryPieChart(gastosPorCategoria),
-          const SizedBox(height: 24),
-          Text('Detalles (Próximamente)', style: TextStyle(color: darkPrimaryTextColor, fontSize: 18, fontWeight: FontWeight.bold)),
-        ],
       ),
     );
   }

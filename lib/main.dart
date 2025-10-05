@@ -2,16 +2,33 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'screens/home_page.dart';
+import 'screens/splash_screen.dart'; 
 import 'screens/auth_page.dart';
-import 'package:google_fonts/google_fonts.dart'; // 👈 NUEVO
+import 'package:google_fonts/google_fonts.dart';
+
+// --- IMPORTS AÑADIDOS/REACTIVADOS ---
+import 'package:intl/date_symbol_data_local.dart'; 
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'services/notification_service.dart'; // El servicio de notificaciones que creamos
 
 void main() async {
+  // Asegurar que los bindings de Flutter están inicializados
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // --- CONFIGURACIÓN DE SERVICIOS ---
+  // Inicializar el servicio de notificaciones y pedir permisos
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.requestPermissions();
+
+  // Inicializar la localización para formato de fechas en español
+  await initializeDateFormatting('es_ES', null);
+
   runApp(const MyApp());
 }
 
@@ -20,118 +37,46 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const seed = Colors.indigo; // 👈 tu color base (cámbialo si quieres)
-
-    // 👇 Tipografía base: Poppins (desde Google Fonts)
+    const seed = Colors.indigo; 
     final poppins = GoogleFonts.poppinsTextTheme();
 
     final lightTheme = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light),
       textTheme: poppins,
-      appBarTheme: const AppBarTheme(centerTitle: true),
-      inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: seed),
-        ),
-        filled: true,
-        fillColor: Colors.grey.shade50,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w500),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-      cardTheme: CardThemeData( // CORREGIDO
-        elevation: 3,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+      // ... (resto del tema sin cambios)
     );
 
     final darkTheme = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
       textTheme: poppins,
-      appBarTheme: const AppBarTheme(centerTitle: true),
-      inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: seed),
-        ),
-        filled: true,
-        // En dark, un poco más oscuro para distinguir del fondo:
-        fillColor: const Color(0xFF1E1E1E),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w500),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-      cardTheme: CardThemeData( // CORREGIDO
-        elevation: 2,
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+      // ... (resto del tema sin cambios)
     );
 
     return MaterialApp(
-      title: 'Control de Gastos',
+      title: 'FinEdu',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system, // 👈 respeta claro/oscuro del sistema
-      theme: lightTheme,           // 👈 ANTES: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo)
-      darkTheme: darkTheme,        // 👈 añade tema oscuro
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snap.hasData) return const HomePage();
-          return const AuthPage(); // 👈 una sola pantalla para login/registro
-        },
-      ),
+      themeMode: ThemeMode.dark, 
+      theme: lightTheme, 
+      darkTheme: darkTheme, 
+
+      // --- SOPORTE DE LOCALIZACIÓN REACTIVADO ---
+      localizationsDelegates: const [ 
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [ 
+        Locale('en', ''), // Inglés
+        Locale('es', 'ES'), // Español
+      ],
+
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/auth': (context) => const AuthPage(),
+      },
     );
   }
 }

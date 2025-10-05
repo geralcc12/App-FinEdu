@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <--- AÑADIDO
+import 'package:cloud_firestore/cloud_firestore.dart'; // <--- AÑADIDO
 
 // Colores (puedes ajustarlos o importarlos de tu archivo de tema)
 const Color darkScaffoldBackground = Color(0xFF121212);
@@ -33,6 +35,8 @@ class _ChatBotPageState extends State<ChatBotPage> {
   final List<ChatMessage> _messages = [];
   final ScrollController _scrollController = ScrollController();
 
+  String _userName = "Usuario"; // <--- AÑADIDO: Nombre de usuario
+
   // Estado de la conversación para establecer metas
   String? _metaAmount;
   String? _metaDeadline;
@@ -42,7 +46,34 @@ class _ChatBotPageState extends State<ChatBotPage> {
   @override
   void initState() {
     super.initState();
-    _addBotMessage("¡Hola! Soy tu asistente FinEdu. 👋\n¿Te gustaría establecer una nueva meta de ahorro?");
+    _loadUserNameAndGreet(); // <--- CAMBIADO: Cargar nombre y saludar
+  }
+
+  Future<void> _loadUserNameAndGreet() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    String fetchedName = "Usuario";
+
+    if (currentUser != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUser.uid).get();
+        if (userDoc.exists && userDoc.data() != null) {
+          fetchedName = (userDoc.data()! as Map<String, dynamic>)['nombre'] as String? ?? currentUser.email?.split('@').first ?? 'Usuario';
+        } else {
+          fetchedName = currentUser.email?.split('@').first ?? 'Usuario';
+        }
+      } catch (e) {
+        // Si hay error al leer Firestore, usar el email
+        fetchedName = currentUser.email?.split('@').first ?? 'Usuario';
+        print("Error al cargar nombre de Firestore: $e");
+      }
+    }
+    
+    if (mounted) {
+        setState(() {
+            _userName = fetchedName;
+        });
+        _addBotMessage("¡Hola $_userName! Soy tu asistente FinEdu. 👋\n¿Te gustaría establecer una nueva meta de ahorro?");
+    }
   }
 
   void _scrollToBottom() {
@@ -58,6 +89,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
   }
 
   void _addBotMessage(String text) {
+    if (!mounted) return;
     setState(() {
       _messages.add(ChatMessage(text: text, isUserMessage: false, timestamp: DateTime.now()));
     });
@@ -68,64 +100,72 @@ class _ChatBotPageState extends State<ChatBotPage> {
     if (text.trim().isEmpty) return;
     _textController.clear();
 
+    if (!mounted) return;
     setState(() {
       _messages.add(ChatMessage(text: text, isUserMessage: true, timestamp: DateTime.now()));
     });
     _scrollToBottom();
 
-    // Lógica simulada del bot
-    String userMessage = text.toLowerCase();
+    String userMessage = text.toLowerCase().trim();
     Future.delayed(const Duration(milliseconds: 600), () {
-      if (_conversationStep == 0) { // Inicio de conversación sobre metas
-        if (userMessage.contains("si") || userMessage.contains("sí") || userMessage.contains("claro") || userMessage.contains("ok")) {
+      if (!mounted) return;
+
+      // Saludo simple
+      if ((userMessage == "hola" || userMessage == "hi" || userMessage == "buenos dias" || userMessage == "buenas tardes" || userMessage == "buenas noches") && _conversationStep == 0) {
+        _addBotMessage("¡Hola $_userName! ¿Cómo puedo ayudarte hoy con tus metas de ahorro?");
+        // No cambiamos _conversationStep aquí, esperamos a que el usuario inicie el flujo de metas o pregunte otra cosa
+        return; // Salimos para no procesar el resto de la lógica de metas inmediatamente
+      }
+
+      // Lógica de conversación para establecer metas
+      if (_conversationStep == 0) { 
+        if (userMessage.contains("si") || userMessage.contains("sí") || userMessage.contains("claro") || userMessage.contains("ok") || userMessage.contains("establecer meta")) {
           _addBotMessage("¡Excelente! Para empezar, ¿cuánto te gustaría ahorrar? (Ej: 500 soles, 1000 dólares)");
           _conversationStep = 1;
         } else if (userMessage.contains("no")) {
-          _addBotMessage("Entendido. Si cambias de opinión o necesitas ayuda con otra cosa, ¡no dudes en preguntar!");
-           _conversationStep = 0; // Reiniciar o ir a un estado general
+          _addBotMessage("Entendido, $_userName. Si cambias de opinión o necesitas ayuda con otra cosa, ¡no dudes en preguntar!");
+           _conversationStep = 0; 
         } else {
-          _addBotMessage("Disculpa, no te entendí bien. ¿Quieres establecer una meta de ahorro? (Sí/No)");
+          _addBotMessage("Disculpa $_userName, no te entendí bien. ¿Quieres establecer una meta de ahorro? (Sí/No)");
         }
-      } else if (_conversationStep == 1) { // Esperando monto
-        // Aquí podrías intentar extraer el monto con regex, por ahora tomamos el texto completo
+      } else if (_conversationStep == 1) { 
         _metaAmount = text;
-        _addBotMessage("¡Anotado: $_metaAmount! ¿Para qué fecha te gustaría haber alcanzado esta meta? (Ej: fin de mes, 3 meses, 31/12/2024)");
+        _addBotMessage("¡Anotado: $_metaAmount! ¿Para qué fecha te gustaría haber alcanzado esta meta, $_userName? (Ej: fin de mes, 3 meses, 31/12/2024)");
         _conversationStep = 2;
-      } else if (_conversationStep == 2) { // Esperando plazo
+      } else if (_conversationStep == 2) { 
         _metaDeadline = text;
-        _addBotMessage("Perfecto: para el $_metaDeadline. ¿Hay alguna razón o algo específico para lo que estás ahorrando? (Ej: vacaciones, un nuevo celular, fondo de emergencia)");
+        _addBotMessage("Perfecto: para el $_metaDeadline. ¿Hay alguna razón o algo específico para lo que estás ahorrando, $_userName? (Ej: vacaciones, un nuevo celular, fondo de emergencia)");
         _conversationStep = 3;
-      } else if (_conversationStep == 3) { // Esperando razón
+      } else if (_conversationStep == 3) { 
         _metaReason = text;
-        _addBotMessage("¡Entendido! Entonces, este es el plan:\n🎯 Meta: $_metaAmount\n🗓️ Plazo: $_metaDeadline\n💡 Razón: $_metaReason\n\n¿Confirmamos esta meta?");
+        _addBotMessage("¡Entendido! Entonces, este es el plan, $_userName:\n🎯 Meta: $_metaAmount\n🗓️ Plazo: $_metaDeadline\n💡 Razón: $_metaReason\n\n¿Confirmamos esta meta?");
         _conversationStep = 4;
-      } else if (_conversationStep == 4) { // Esperando confirmación
+      } else if (_conversationStep == 4) { 
         if (userMessage.contains("si") || userMessage.contains("sí") || userMessage.contains("confirmar")) {
-          _addBotMessage("¡Meta guardada! 🎉 Puedes ver tus metas en la sección de 'Metas' (próximamente). ¡Mucho éxito!");
-          // Aquí iría la lógica para guardar la meta realmente (Firestore, etc.)
-          // Por ahora, reiniciamos la conversación de metas.
-           _resetMetaConversation();
+          _addBotMessage("¡Meta guardada, $_userName! 🎉 Puedes ver tus metas en la sección de 'Metas' (próximamente). ¡Mucho éxito!");
+           _resetMetaConversation(greetUser: false);
         } else {
-          _addBotMessage("De acuerdo. Si quieres cambiar algo, podemos empezar de nuevo. ¿Deseas modificar la meta o cancelarla?");
-          // Lógica para modificar o cancelar... por ahora reiniciamos.
+          _addBotMessage("De acuerdo, $_userName. Si quieres cambiar algo, podemos empezar de nuevo. ¿Deseas modificar la meta o cancelarla?");
            _resetMetaConversation();
         }
       } else {
-          _addBotMessage("Estoy aquí para ayudarte con tus metas de ahorro. ¿En qué puedo asistirte?");
+          _addBotMessage("Estoy aquí para ayudarte con tus metas de ahorro, $_userName. ¿En qué puedo asistirte?");
       }
     });
   }
   
-  void _resetMetaConversation(){
+  void _resetMetaConversation({bool greetUser = true}){
       _conversationStep = 0;
       _metaAmount = null;
       _metaDeadline = null;
       _metaReason = null;
-      // Podríamos añadir un mensaje como "¿Hay algo más en lo que pueda ayudarte?"
-      // o volver al saludo inicial después de un delay.
-       Future.delayed(const Duration(milliseconds: 800), () {
-         _addBotMessage("¿Hay algo más en lo que pueda ayudarte con tus finanzas hoy?");
-       });
+      if (greetUser && mounted) {
+           Future.delayed(const Duration(milliseconds: 800), () {
+             if (mounted) {
+                _addBotMessage("¿Hay algo más en lo que pueda ayudarte con tus finanzas hoy, $_userName?");
+             }
+           });
+      }
   }
 
   @override
@@ -133,7 +173,7 @@ class _ChatBotPageState extends State<ChatBotPage> {
     return Scaffold(
       backgroundColor: darkScaffoldBackground,
       appBar: AppBar(
-        title: const Text('Asistente FinEdu', style: TextStyle(color: darkPrimaryTextColor, fontWeight: FontWeight.bold)),
+        title: Text('Asistente FinEdu', style: TextStyle(color: darkPrimaryTextColor, fontWeight: FontWeight.bold)),
         backgroundColor: darkCardBackground,
         elevation: 1,
         iconTheme: const IconThemeData(color: darkPrimaryTextColor),
@@ -187,14 +227,6 @@ class _ChatBotPageState extends State<ChatBotPage> {
             ),
             child: Text(message.text, style: TextStyle(color: textColor, fontSize: 15)),
           ),
-          // Option to show timestamp (uncomment if desired)
-          /*Padding(
-            padding: const EdgeInsets.only(top: 2.0, left: 10, right: 10),
-            child: Text(
-              DateFormat('HH:mm').format(message.timestamp),
-              style: TextStyle(color: darkSecondaryTextColor, fontSize: 10),
-            ),
-          ),*/
         ],
       ),
     );
